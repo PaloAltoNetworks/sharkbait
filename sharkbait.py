@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import random
 from time import sleep
 from urllib.error import HTTPError
 import requests
@@ -20,6 +21,7 @@ def get_malware_urls():
     for x in jsonResponse['urls']:
         url_list.append(x['url'])
 
+    random.shuffle(url_list)
     return(url_list)
 
 
@@ -27,11 +29,16 @@ def main():
     urls = get_malware_urls()
 
     for url in urls:
+        print("Downloading: " + url)
         try:
-            r = requests.get(url)
-            r.raise_for_status()
+            response = requests.get(url)
+            response.raise_for_status()
         except requests.exceptions.HTTPError as http_err:
-            raise SystemExit(err)
+            print(http_err)
+            pass
+        except requests.exceptions.ConnectionError as conn_err:
+            print(conn_err)
+            pass
         sleep(5)
 
 
