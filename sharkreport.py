@@ -4,7 +4,7 @@ import argparse
 import json
 
 parser = argparse.ArgumentParser(description='Generate sharkbait reports.')
-parser.add_argument('logfile', help='The log filename')
+parser.add_argument('logfile', default='/tmp/sharkbait.log', help='The log filename')
 args = parser.parse_args()
 logfile = args.logfile
 
@@ -41,13 +41,3 @@ print('---')
 print('Security Efficacy: %4.2f%%' % (total_blocked/total*100))
 print('False Negative Rate: %4.2f%%' % (allowed/total*100))
 
-
-
-
-
-
-
-
-
-# for entry in data:
-#     print(json.dumps(entry, indent = 4))
