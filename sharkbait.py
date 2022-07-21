@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import random
+import sys
 import argparse
 from random import choices, randint
 from time import sleep
@@ -12,34 +13,32 @@ import urllib3
 import logging
 import logging.handlers
 
-LOGFILE = '/tmp/sharkbait.log'
+REFRESH = 1
 
 start = datetime.now()
 
 def get_args():
     parser = argparse.ArgumentParser(description='Generate malware download activity.')
-    parser.add_argument('timing', default='nibble', choices=['nibble', 'chum', 'frenzy'], help='Malware download timing')
+    parser.add_argument('--mode', required=True, choices=['nibble', 'chum', 'frenzy'], help='Malware download timing')
+    parser.add_argument('--logfile', default='/tmp/sharkbait.log', help='The log filename' )
     args = parser.parse_args()
-    if args.timing == 'nibble':
+    if args.mode == 'nibble':
         randomness = 600
-    elif args.timing == 'chum':
+    elif args.mode == 'chum':
         randomness = 60
-    elif args.timing == 'frenzy':
+    elif args.mode == 'frenzy':
         randomness = 6
-    return randomness
+    return randomness, args.logfile
 
-def get_malware_urls(logger):
+def get_malware_urls(urls, logger):
     urlhaus = "https://urlhaus-api.abuse.ch/v1/urls/recent/"
     url_list = []
+    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
     try:
-        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
         response = requests.get(urlhaus, timeout=5, verify=False)
-        response.raise_for_status()
-        jsonResponse = response.json()
-    except HTTPError as http_err:
-        print(f'HTTP error occurred: {http_err}')
-    except Exception as err:
-        print(f'Other error occurred: {err}')
+    except requests.exceptions.RequestException as e:
+        return urls   
+    jsonResponse = response.json()
     for x in jsonResponse['urls']:
         if x['url_status'] == 'online':
             url_list.append(x['url'])
@@ -47,7 +46,7 @@ def get_malware_urls(logger):
     count = len(url_list)
     global start
     start = datetime.now()
-    logger.info('Malware URL list updated ({} urls online)'.format(count))
+    logger.info('[UPDATE] | --- | Malware URL list updated ({} URLs online)'.format(count))
     return(url_list)
 
 def get_payload(url):
@@ -67,12 +66,12 @@ def get_payload(url):
     return(status)
 
 
-def get_logger():
+def get_logger(logfile):
     format = '%(asctime)s | %(levelname)s | %(message)s'
     # datefmt = '%b %d %H:%M:%S'
     logger = logging.getLogger('sharkbait_logger')
     handler = logging.handlers.TimedRotatingFileHandler(
-        filename=LOGFILE,
+        filename=logfile,
         # filemode='a',
         encoding='utf-8',
         when='D',
@@ -86,15 +85,17 @@ def get_logger():
 
 
 def main():
-    logger = get_logger()
+    rand, logfile = get_args()
+    logger = get_logger(logfile)
     urls = []
-    rand = get_args()
     while True:
-        refresh = start + timedelta(minutes = 1)
+        refresh = start + timedelta(minutes = REFRESH)
         now = datetime.now()
         if not urls or now > refresh:
-            urls = get_malware_urls(logger)
+            urls = get_malware_urls(urls, logger)
         num_urls = len(urls)
+        if num_urls == 0:
+            sys.exit('Cannot retrieve malware URLs')
         random_url = urls[random.randint(0, (num_urls - 1))]
         result = get_payload(random_url)
         if result == 200:
