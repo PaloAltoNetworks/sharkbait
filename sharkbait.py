@@ -13,7 +13,7 @@ import urllib3
 import logging
 import logging.handlers
 
-REFRESH = 1
+REFRESH = 15
 
 start = datetime.now()
 
